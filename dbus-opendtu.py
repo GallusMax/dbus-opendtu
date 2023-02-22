@@ -174,6 +174,8 @@ class DbusService:
       self.signofliveinterval = config['DEFAULT']['SignOfLifeLog']
       self.useyieldday        = int(config['DEFAULT']['useYieldDay'])
       self.pvinverterphase    = str(config['TEMPLATE{}'.format(template_number)]['Phase'])
+      self.digestauth = bool(
+            config[f"TEMPLATE{template_number}"]['DigestAuth'])
       try:
         self.max_age_ts         = int(config['DEFAULT']['MagAgeTsLastSuccess'])
       except:
@@ -279,8 +281,11 @@ class DbusService:
     elif self.dtuvariant == 'ahoy':
       URL = "http://%s/api/live" % ( self.host)
     elif self.dtuvariant == 'template':
-      URL = "http://%s:%s@%s/%s" % ( self.username, self.password, self.host, self.custapipath)
-      URL = URL.replace(":@", "")
+      if self.digestauth is True:
+        URL = f"http://{self.host}/{self.custapipath}"
+      else:
+        URL = "http://%s:%s@%s/%s" % ( self.username, self.password, self.host, self.custapipath)
+        URL = URL.replace(":@", "")
     return URL
 
   def _refreshData(self):
@@ -290,7 +295,10 @@ class DbusService:
       return
 
     url = self._getStatusUrl()
-    meter_r = requests.get(url = url, timeout=2.50)
+    if self.digestauth is True:
+      meter_r = requests.get(url = url, auth=HTTPDigestAuth(self.password), timeout=2.50)
+    else:
+      meter_r = requests.get(url = url, timeout=2.50)
     
     # check for response
     if not meter_r:
